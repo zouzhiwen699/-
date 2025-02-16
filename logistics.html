@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>物流运费计算器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+        }
+        select, input {
+            width: 200px;
+            padding: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>物流运费计算器</h1>
+    <div class="form-group">
+        <label for="vehicleType">车型:</label>
+        <select id="vehicleType">
+            <!-- 厢货系列 -->
+            <option value="4.2米厢货">4.2米厢货</option>
+            <option value="6.8米厢货">6.8米厢货</option>
+            <option value="9.6米厢货">9.6米厢货</option>
+            <option value="13米厢货">13米厢货</option>
+            <option value="17.5米厢货">17.5米厢货</option>
+            <!-- 高栏系列 -->
+            <option value="4.2米高栏">4.2米高栏</option>
+            <option value="6.8米高栏">6.8米高栏</option>
+            <option value="9.6米高栏">9.6米高栏</option>
+            <option value="13米高栏">13米高栏</option>
+            <!-- 平板系列 -->
+            <option value="4.2米平板">4.2米平板</option>
+            <option value="6.8米平板">6.8米平板</option>
+            <option value="9.6米平板">9.6米平板</option>
+            <option value="13米平板">13米平板</option>
+            <!-- 冷藏系列 -->
+            <option value="4.2米冷藏">4.2米冷藏</option>
+            <option value="6.8米冷藏">6.8米冷藏</option>
+            <option value="9.6米冷藏">9.6米冷藏</option>
+            <!-- 笼车系列 -->
+            <option value="4.2米笼车">4.2米笼车</option>
+            <option value="6.8米笼车">6.8米笼车</option>
+            <option value="9.6米笼车">9.6米笼车</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="distance">运输距离(公里):</label>
+        <input type="number" id="distance" step="1" min="0" placeholder="请输入预估距离">
+    </div>
+    <div class="form-group">
+        <label for="loadingAddress">装货地址:</label>
+        <input type="text" id="loadingAddress" placeholder="请输入装货地址">
+    </div>
+    <div class="form-group">
+        <label for="deliveryAddress">送货地址:</label>
+        <input type="text" id="deliveryAddress" placeholder="请输入送货地址">
+    </div>
+    <div class="form-group">
+        <label for="weight">货物重量(吨):</label>
+        <input type="number" id="weight" step="0.1" min="0">
+    </div>
+    <div class="form-group">
+        <label for="cargoName">货物名称:</label>
+        <input type="text" id="cargoName">
+    </div>
+    <button onclick="calculate()">计算运费</button>
+    <div id="result"></div>
+
+    <script>
+        const vehicleTypes = {
+            // 厢货系列
+            '4.2米厢货': {load: 3, base_price: 2.5, avg_speed: 80, highway_rate: 0.8},
+            '6.8米厢货': {load: 8, base_price: 3.0, avg_speed: 75, highway_rate: 1.0},
+            '9.6米厢货': {load: 15, base_price: 3.5, avg_speed: 70, highway_rate: 1.2},
+            '13米厢货': {load: 30, base_price: 4.0, avg_speed: 65, highway_rate: 1.5},
+            '17.5米厢货': {load: 40, base_price: 4.5, avg_speed: 60, highway_rate: 1.8},
+            
+            // 高栏系列
+            '4.2米高栏': {load: 3, base_price: 2.3, avg_speed: 80, highway_rate: 0.8},
+            '6.8米高栏': {load: 8, base_price: 2.8, avg_speed: 75, highway_rate: 1.0},
+            '9.6米高栏': {load: 15, base_price: 3.3, avg_speed: 70, highway_rate: 1.2},
+            '13米高栏': {load: 30, base_price: 3.8, avg_speed: 65, highway_rate: 1.5},
+            
+            // 平板系列
+            '4.2米平板': {load: 3, base_price: 2.4, avg_speed: 75, highway_rate: 0.8},
+            '6.8米平板': {load: 8, base_price: 2.9, avg_speed: 70, highway_rate: 1.0},
+            '9.6米平板': {load: 15, base_price: 3.4, avg_speed: 65, highway_rate: 1.2},
+            '13米平板': {load: 30, base_price: 3.9, avg_speed: 60, highway_rate: 1.5},
+            
+            // 冷藏系列 (价格较高因为需要制冷)
+            '4.2米冷藏': {load: 2.5, base_price: 3.5, avg_speed: 80, highway_rate: 0.8},
+            '6.8米冷藏': {load: 7, base_price: 4.0, avg_speed: 75, highway_rate: 1.0},
+            '9.6米冷藏': {load: 13, base_price: 4.5, avg_speed: 70, highway_rate: 1.2},
+            
+            // 笼车系列
+            '4.2米笼车': {load: 3, base_price: 2.6, avg_speed: 80, highway_rate: 0.8},
+            '6.8米笼车': {load: 8, base_price: 3.1, avg_speed: 75, highway_rate: 1.0},
+            '9.6米笼车': {load: 15, base_price: 3.6, avg_speed: 70, highway_rate: 1.2}
+        };
+
+        // 默认高速公路比例
+        const DEFAULT_HIGHWAY_RATIO = 0.85;
+
+        function getCurrentSeason() {
+            const month = new Date().getMonth() + 1;
+            if (month === 1) return {factor: 1.5, description: '春节期间'};
+            if (month >= 9 && month <= 12) return {factor: 1.2, description: '旺季'};
+            if (month >= 6 && month <= 8) return {factor: 1.1, description: '雨季'};
+            return {factor: 1.0, description: '淡季'};
+        }
+
+        function calculate() {
+            try {
+                const vehicleType = document.getElementById('vehicleType').value;
+                const distance = parseFloat(document.getElementById('distance').value);
+                const loadingAddress = document.getElementById('loadingAddress').value;
+                const deliveryAddress = document.getElementById('deliveryAddress').value;
+                const weight = parseFloat(document.getElementById('weight').value);
+                const cargoName = document.getElementById('cargoName').value;
+
+                if (!distance || !weight) {
+                    alert('请输入有效的距离和重量！');
+                    return;
+                }
+
+                if (weight > vehicleTypes[vehicleType].load) {
+                    alert('货物重量超过车辆载重限制！');
+                    return;
+                }
+
+                const season = getCurrentSeason();
+                const highway_ratio = DEFAULT_HIGHWAY_RATIO;
+                
+                const base_price = vehicleTypes[vehicleType].base_price;
+                const base_freight = distance * base_price * season.factor;
+                
+                const highway_distance = distance * highway_ratio;
+                const highway_fee = highway_distance * vehicleTypes[vehicleType].highway_rate;
+                
+                const loading_fee = 200;
+                const unloading_fee = 200;
+                const total_price = base_freight + loading_fee + unloading_fee + highway_fee;
+
+                // 计算运输时间
+                const avg_speed = vehicleTypes[vehicleType].avg_speed;
+                const drive_time = distance / avg_speed;
+                const rest_time = Math.floor(drive_time / 8) * 2;
+                const total_time = drive_time + rest_time;
+                
+                const arrival_time = new Date();
+                arrival_time.setHours(arrival_time.getHours() + total_time);
+
+                const result = document.getElementById('result');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <h3>运单信息：</h3>
+                    <p>车型: ${vehicleType}</p>
+                    <p>装货地址: ${loadingAddress}</p>
+                    <p>送货地址: ${deliveryAddress}</p>
+                    <p>运输距离: ${distance.toFixed(1)}公里</p>
+                    <p>货物重量: ${weight}吨</p>
+                    <p>货物名称: ${cargoName}</p>
+                    <p>当前季节: ${season.description}</p>
+                    
+                    <h3>费用明细：</h3>
+                    <p>基础运费: ${base_freight.toFixed(2)}元 (包含${season.description}系数${season.factor})</p>
+                    <p>高速费用: ${highway_fee.toFixed(2)}元</p>
+                    <p>装卸费: ${loading_fee + unloading_fee}元</p>
+                    <p>总费用: ${total_price.toFixed(2)}元</p>
+                    
+                    <h3>时间信息：</h3>
+                    <p>预计行驶时间: ${drive_time.toFixed(1)}小时</p>
+                    <p>预计休息时间: ${rest_time.toFixed(1)}小时</p>
+                    <p>总运输时间: ${total_time.toFixed(1)}小时</p>
+                    <p>预计到达时间: ${arrival_time.toLocaleString()}</p>
+                `;
+            } catch (error) {
+                alert('计算失败：' + error);
+            }
+        }
+    </script>
+</body>
+</html> 
